@@ -36,8 +36,9 @@ public:
     bool OnItemRoll(const Player *player, LootStoreItem const *lootStoreItem, float &chance, Loot &loot,
                     const LootStore &lootStore) override {
 
-        if (!player || !lootStoreItem)
+        if (!player || !lootStoreItem){
             return true;
+        }
 
         uint32 itemId = lootStoreItem->itemid;
         float inputChance{chance};
@@ -46,7 +47,7 @@ public:
 
         if (const Group* group = player->GetGroup())
         {
-            if (group->GetMembersCount() > 3)
+            if (group->GetMembersCount() > 3 && !group->IsLeader(player->GetGUID()))
                 return true;
         }
 
