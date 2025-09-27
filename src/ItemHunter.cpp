@@ -28,8 +28,8 @@ public:
                                   " WHERE `character_guid` = " + std::to_string(guid) +
                                   " AND `item_template_id` = " + std::to_string(itemId) + ";";
 
-        CharacterDatabase.AsyncQuery(
-                updateQuery); //async is good enough here. (we value the lower performance impact more than making sure we don't drop an item multiple times by accident. (this would need two basically simultaneous kills/drops to happen)
+        CharacterDatabase.Query(
+                updateQuery);
     }
 
 
@@ -45,16 +45,23 @@ public:
 
         float saved_chance;
 
+        ObjectGuid relevantPlayerGUID = player->GetGUID();
+
         if (const Group* group = player->GetGroup())
         {
-            if (group->GetMembersCount() > 3 && !group->IsLeader(player->GetGUID()))
-                return true;
-        }
+            relevantPlayerGUID = group->GetLeaderGUID();
+//            std::ostringstream msg;
+//            msg << "|cffa335ee[Item hunter log]|r "
+//                << "Player " << player->GetName() << " is in Group. Using group Leaders (" << group->GetLeaderName() << ") item watchlist";
 
-        uint32 guid = player->GetGUID().GetCounter();
+        }
+        uint64 relevantPlayerGUIDRaw = relevantPlayerGUID.GetRawValue();
+
+
+//        uint32 guid = relevantPlayerGUID;
         std::string query = "SELECT `saved_chance` "
                             "FROM `character_item_watchlist` "
-                            "WHERE `character_guid` = " + std::to_string(guid) +
+                            "WHERE `character_guid` = " + std::to_string(relevantPlayerGUIDRaw) +
                             " AND `item_template_id` = " + std::to_string(itemId) +
                             " LIMIT 1;";
 
@@ -65,17 +72,17 @@ public:
             saved_chance = fields[0].Get<float>();
 
         } else {
-            return true; //we don't have item on this player-watchlist, so we stop hook execution.
+            return true; //we don't have item on this player-watchlist, so we stop hook execution early (return true, just simply lets the core continue its loot calculation (return ing false would deny the loot).
         }
         float corrected_chance;
         if (saved_chance < 5.0f * inputChance) {
             corrected_chance = saved_chance + inputChance;
         } else {
             corrected_chance = saved_chance + (saved_chance * 0.8f + inputChance) / 2.0f;
+        }
 
-            if (corrected_chance > 100.0f) {
-                corrected_chance = 100.0f;
-            }
+        if (corrected_chance > 100.0f) {
+            corrected_chance = 100.0f;
         }
 
         chance = corrected_chance;
@@ -117,10 +124,10 @@ public:
 
         std::string updateQuery = "UPDATE `character_item_watchlist` "
                                   "SET `saved_chance` = " + std::to_string(corrected_chance) +
-                                  " WHERE `character_guid` = " + std::to_string(guid) +
+                                  " WHERE `character_guid` = " + std::to_string(relevantPlayerGUIDRaw) +
                                   " AND `item_template_id` = " + std::to_string(itemId) + ";";
 
-        CharacterDatabase.AsyncQuery(updateQuery); //async query to lower performance impact if DB handler is busy
+        CharacterDatabase.Query(updateQuery);
 
         return true;
     }
