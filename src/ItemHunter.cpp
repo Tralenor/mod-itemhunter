@@ -40,7 +40,20 @@ public:
             return true;
         }
 
-        uint32 itemId = lootStoreItem->itemid;
+
+        uint32 lootId{};
+
+        if (!lootStoreItem->reference){
+            lootId = lootStoreItem->itemid;
+        } else if (lootStoreItem->reference){
+            lootId = lootStoreItem->reference;
+        }
+
+        if(lootId == 0){
+            return true;
+        }
+
+
         float inputChance{chance};
 
         float saved_chance;
@@ -62,7 +75,7 @@ public:
         std::string query = "SELECT `saved_chance` "
                             "FROM `character_item_watchlist` "
                             "WHERE `character_guid` = " + std::to_string(relevantPlayerGUIDRaw) +
-                            " AND `item_template_id` = " + std::to_string(itemId) +
+                            " AND `item_template_id` = " + std::to_string(lootId) +
                             " LIMIT 1;";
 
         QueryResult result = CharacterDatabase.Query(query);
@@ -104,19 +117,19 @@ public:
                 };
 
 
-        if (const ItemTemplate *itemTemplate = sObjectMgr->GetItemTemplate(itemId)){
+        if (const ItemTemplate *itemTemplate = sObjectMgr->GetItemTemplate(lootId)){
             itemName = itemTemplate->Name1;
             itemQuality = itemTemplate->Quality;
         }
 
         std::string itemLink = std::string(qualityColors[itemQuality]) +
-                               "|Hitem:" + std::to_string(itemId) + "::::::::::::|h[" + itemName + "]|h|r";
+                               "|Hitem:" + std::to_string(lootId) + "::::::::::::|h[" + itemName + "]|h|r";
 
 
         msg << "|cffa335ee[Item hunter log]|r "
             << "Player " << player->GetName() << " "
             << "is rolling for item " << itemLink << " "
-            << "(ID: " << itemId << ", "
+            << "(ID: " << lootId << ", "
             << "original chance: " << inputChance << ", "
             << "corrected chance: " << corrected_chance << ")";
 
@@ -125,7 +138,7 @@ public:
         std::string updateQuery = "UPDATE `character_item_watchlist` "
                                   "SET `saved_chance` = " + std::to_string(corrected_chance) +
                                   " WHERE `character_guid` = " + std::to_string(relevantPlayerGUIDRaw) +
-                                  " AND `item_template_id` = " + std::to_string(itemId) + ";";
+                                  " AND `item_template_id` = " + std::to_string(lootId) + ";";
 
         CharacterDatabase.Query(updateQuery);
 
